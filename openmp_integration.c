@@ -1,3 +1,5 @@
+// Parrallel integration. function on [a, b].
+
 #include <omp.h>
 #include <stdio.h>
 #include <stdlib.h>
