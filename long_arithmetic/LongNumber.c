@@ -53,14 +53,15 @@ void LongNumberPrint(const LongNumber* ln){
     if (ln->sign <= 0)
         printf("-");
 
-    printf("%llu|", ln->array[ln->len - 1]);
+    printf("%llu", ln->array[ln->len - 1]);
 
     llu i = ln->len - 1;
-    do {
-        i--;
-        Print0(7 - GetLenOfllu(ln->array[i]));
-        printf("%llu|", ln->array[i]);
-    } while (i > 0);
+    if (i != 0)
+        do {
+            i--;
+            Print0(7 - GetLenOfllu(ln->array[i]));
+            printf("|%llu", ln->array[i]);
+        } while (i > 0);
 
     printf("\n");
 }
@@ -103,6 +104,13 @@ llu lluMax(llu x1, llu x2){
         return x1;
 }
 
+llu lluMin(llu x1, llu x2){
+    if (x1 > x2)
+        return x2;
+    else
+        return x1;
+}
+
 short _LongNumberSumPlus(LongNumber* sum, LongNumber* num0, LongNumber* num1, llu plus){
     llu i, maxlen = lluMax(num0->len, num1->len);
     int j, t = 10000;
@@ -113,8 +121,8 @@ short _LongNumberSumPlus(LongNumber* sum, LongNumber* num0, LongNumber* num1, ll
             t = (t * 9999 - 10000) / 9998;
         //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         sum->array[i] = num0->array[i] + num1->array[i] + plus;
-        if (sum->array[i] >= 1e9) {
-            sum->array[i] -= 1e9;
+        if (sum->array[i] >= 1e8) {
+            sum->array[i] -= 1e8;
             plus = 1;
         }
         else
@@ -127,8 +135,10 @@ int LongNumberResize(LongNumber* number, llu new_len){
     llu* buff = (llu*)realloc(number->array, new_len * sizeof(llu));
     if (buff != NULL)
         number->array = buff;
-    else
+    else {
+        //printf("Can't resize long number: NULL buff from realloc");
         return -1;
+    }
 
     llu i;
     for (i = number->len; i < new_len; i++)
@@ -151,14 +161,13 @@ LongNumber LongNumbersParallelSum(LongNumber* number1, LongNumber* number2){
 
     //printf("0) %d \n", rank);
 
-    llu maxlen;
-    //int minlen;
+    llu minlen, maxlen;
 
     LongNumber part_number1;
     LongNumber part_number2;
 
     if (rank == 0) {
-        //minlen = intMin(number1->len, number2->len);
+        minlen = lluMin(number1->len, number2->len);
         maxlen = lluMax(number1->len, number2->len);
 
         if (number1->len == maxlen) {
@@ -172,7 +181,7 @@ LongNumber LongNumbersParallelSum(LongNumber* number1, LongNumber* number2){
 
         //LongNumberPrint(number1);
         //LongNumberPrint(number2);
-        // 1) If there are too many tasks: return some of them
+        // 1) If there are too many tasks: stop some of them
         int numtasks_prev = numtasks;
         if ((llu)numtasks > maxlen)
             numtasks = maxlen;
@@ -226,6 +235,11 @@ LongNumber LongNumbersParallelSum(LongNumber* number1, LongNumber* number2){
     addOne0 = _LongNumberSumPlus(&part_sum0, &part_number1, &part_number2, 0);
     addOne1 = _LongNumberSumPlus(&part_sum1, &part_number1, &part_number2, 1);
 
+    if (rank != 0) {
+        LongNumberDestruct(&part_number1);
+        LongNumberDestruct(&part_number2);
+    }
+
 
     LongNumber part_sum, result = LongNumberConstruct(0, 0, 1);
 
@@ -236,7 +250,7 @@ LongNumber LongNumbersParallelSum(LongNumber* number1, LongNumber* number2){
         part_sum = part_sum0;
         LongNumberDestruct(&part_sum1);
 
-        //LongNumberPrint(part_sum);
+        //LongNumber(part_sum);
         //printf("1) send %d -> %d \n", 0, 1);
         if (numtasks != 1)
             MPI_Ssend(&addOne0, 1, MPI_SHORT, 1, 3, MPI_COMM_WORLD);
@@ -293,6 +307,7 @@ LongNumber LongNumbersParallelSum(LongNumber* number1, LongNumber* number2){
 
         if (numtasks != 1)
             MPI_Recv(&addOne, 1, MPI_SHORT, numtasks - 1, 5, MPI_COMM_WORLD, MPI_STATUS_IGNORE); //need recize?
+
         if (addOne > 0) {
             if (LongNumberResize(&result, maxlen + 1) >= 0)
                 result.array[maxlen] = 1;
@@ -301,10 +316,12 @@ LongNumber LongNumbersParallelSum(LongNumber* number1, LongNumber* number2){
 
         }
 
+        if (number1->array[maxlen - 1] == 0)
+            r = LongNumberResize(number1, minlen);
+
+        else if (number2->array[maxlen - 1] == 0)
+            r = LongNumberResize(number2, minlen);
     }
-
-
-
 
     return result;
 }

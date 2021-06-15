@@ -1,9 +1,6 @@
 #include <stdio.h>
-//#include <string.h>
-#include <stdlib.h>
-//#include <time.h>
-
 #include "mpi.h"
+
 #include "LongNumber.h"
 
 int main(int argc, char* argv[]){
@@ -19,16 +16,21 @@ int main(int argc, char* argv[]){
 
 
     if (rank == 0) {
-        ln1 = LongNumberSameDigitConstruct(9, 400, 1);
-        //LongNumberPrint(&ln1);
-        ln2 = LongNumberSameDigitConstruct(2, 400, 1);
-        //LongNumberPrint(&ln2);
+        ln1 = LongNumberSameDigitConstruct(4, 8, 1);
+        LongNumberPrint(&ln1);
+        ln2 = LongNumberSameDigitConstruct(1, 5, 1);
+        //ln2 = LongNumberConstruct(1, 1, 1);
+        LongNumberPrint(&ln2);
 
     }
     sum = LongNumbersParallelSum(&ln1, &ln2);
 
     if (rank == 0) {
-        //LongNumberPrint(&sum);
+        printf("SUM: \n");
+        LongNumberPrint(&sum);
+        printf("Numbers: \n");
+        LongNumberPrint(&ln1);
+        LongNumberPrint(&ln2);
         printf("Need time: %f\n", MPI_Wtime() - start_time);
 
         LongNumberDestruct(&ln1);
